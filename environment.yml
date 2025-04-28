@@ -1,0 +1,8 @@
+name: rdvenv
+channels:
+    - conda-forge
+    - defaults
+dependencies:
+    - kaggle
+    - pandas
+    - numpy
