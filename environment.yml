@@ -6,3 +6,8 @@ dependencies:
     - kaggle
     - pandas
     - numpy
+    - pip
+    - pip:
+          - seaborn
+          - matplotlib
+          - psycopg2
