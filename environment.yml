@@ -3,6 +3,7 @@ channels:
     - conda-forge
     - defaults
 dependencies:
+    - python=3.9
     - kaggle
     - pandas
     - numpy
@@ -11,3 +12,4 @@ dependencies:
           - seaborn
           - matplotlib
           - psycopg2
+          - pyspark
