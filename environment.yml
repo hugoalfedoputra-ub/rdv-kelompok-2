@@ -9,7 +9,13 @@ dependencies:
     - numpy
     - pip
     - pip:
+          - findspark
+          - python-dotenv
           - seaborn
           - matplotlib
           - psycopg2
           - pyspark
+          - requests
+          - pycouchdb
+          - kafka-python
+          - "apache-airflow[celery]==3.0.1"

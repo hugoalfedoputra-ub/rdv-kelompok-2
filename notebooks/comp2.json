@@ -1,0 +1,37 @@
+{
+    "data": {
+        "base": "stations",
+        "clouds": { "all": 85 },
+        "cod": 200,
+        "coord": { "lat": -7.95, "lon": 112.61 },
+        "dt": 1747103402,
+        "id": 1636722,
+        "main": {
+            "feels_like": 311.85,
+            "grnd_level": 920,
+            "humidity": 87,
+            "pressure": 1011,
+            "sea_level": 1011,
+            "temp": 304.85,
+            "temp_max": 304.85,
+            "temp_min": 304.85
+        },
+        "name": "Malang",
+        "sys": {
+            "country": "ID",
+            "sunrise": 1747089183,
+            "sunset": 1747131533
+        },
+        "timezone": 25200,
+        "visibility": 10000,
+        "weather": [{ "description": "overcast clouds", "icon": "04d", "id": 804, "main": "Clouds" }],
+        "wind": {
+            "deg": 195,
+            "gust": 1.36,
+            "speed": 0.42
+        }
+    },
+    "latitude": -7.95,
+    "longitude": 112.61,
+    "provider": "OpenWeatherMap"
+}

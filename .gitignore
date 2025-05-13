@@ -1,2 +1,8 @@
 .env
 data/
+airflow/*
+pipeline/*
+
+!.env.example
+!dags
+!docker-compose.yaml
