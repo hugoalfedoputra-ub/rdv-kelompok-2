@@ -1,0 +1,24 @@
+name: rdvenv-ml
+channels:
+    - conda-forge
+    - defaults
+dependencies:
+    - pandas
+    - numpy
+    - pip
+    - pip:
+          - python-dotenv
+          - tqdm
+          - seaborn
+          - matplotlib
+          - requests
+          - ipywidgets
+          - scikit-learn
+          - xgboost
+          - matplotlib
+          - seaborn
+          - statsmodels
+          - optuna
+          - prophet
+          - pycouchdb
+          - kafka-python
