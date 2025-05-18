@@ -1,0 +1,5 @@
+kafka-python
+pycouchdb
+python-dotenv
+requests
+urllib3

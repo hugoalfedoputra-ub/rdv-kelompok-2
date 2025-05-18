@@ -18,6 +18,10 @@ REAL_TIME_TOPIC = "real-time"
 OPEN_WEATHER_KEY = os.getenv("OPEN_WEATHER_KEY")
 FREE_WEATHER_KEY = os.getenv("FREE_WEATHER_KEY")
 
+OPEN_WEATHER_PROVIDER = os.getenv("OPEN_WEATHER_PROVIDER")
+OPEN_METEO_PROVIDER = os.getenv("OPEN_METEO_PROVIDER")
+FREE_WEATHER_PROVIDER = os.getenv("FREE_WEATHER_PROVIDER")
+
 
 class WeatherProducer:
     def __init__(self, lat, lon, server_addr="localhost:29092"):
@@ -43,53 +47,6 @@ class WeatherProducer:
             log.info(f"KafkaProducer connected to {server_addr}")
         except KafkaError as e:
             log.error(f"Failed to initialize Kafka Producer: {e}")
-
-    def get_open_weather(self):
-        """
-        Ideally GET every 15 minutes
-        """
-        try:
-            res = requests.get(self.open_weather_url)
-            if res.status_code == 200:
-                data = res.json()
-            else:
-                print(res.status_code)
-        except Exception as e:
-            print(e)
-            return None
-        return data
-
-    def get_open_meteo(self):
-        """
-        Ideally GET at every chance (but new data is pushed every 15 minutes).
-        Based on API limit, you can GET up to 3 requests per minute.
-        """
-        try:
-            res = requests.get(self.open_meteo_url)
-            if res.status_code == 200:
-                data = res.json()
-            else:
-                print(res.status_code)
-        except Exception as e:
-            print(e)
-            return None
-        return data
-
-    def get_free_weather(self):
-        """
-        Ideally GET at every chance (but new data is pushed every 15 minutes).
-        Based on API limit, you can GET up to 22 requests per minute.
-        """
-        try:
-            res = requests.get(self.free_weather_url)
-            if res.status_code == 200:
-                data = res.json()
-            else:
-                print(res.status_code)
-        except Exception as e:
-            print(e)
-            return None
-        return data
 
     def _make_request(self, url, provider_name):
         """Helper function to make HTTP requests"""
@@ -123,14 +80,14 @@ class WeatherProducer:
         if not OPEN_WEATHER_KEY:
             log.error("Cannot fetch OpenWeatherMap data: API key not configured.")
             return None
-        return self._make_request(self.open_weather_url, "OpenWeatherMap")
+        return self._make_request(self.open_weather_url, OPEN_WEATHER_PROVIDER)
 
     def get_open_meteo(self):
         """
         Ideally GET at every chance (but new data is pushed every 15 minutes).
         Based on API limit, you can GET up to 3 requests per minute.
         """
-        return self._make_request(self.open_meteo_url, "Open-Meteo")
+        return self._make_request(self.open_meteo_url, OPEN_METEO_PROVIDER)
 
     def get_free_weather(self):
         """
@@ -140,7 +97,23 @@ class WeatherProducer:
         if not FREE_WEATHER_KEY:
             log.error("Cannot fetch FreeWeatherAPI data: API key not configured.")
             return None
-        return self._make_request(self.free_weather_url, "FreeWeatherAPI")
+        return self._make_request(self.free_weather_url, FREE_WEATHER_PROVIDER)
+
+    def get_meteo_bulk(self, start_date: str, end_date: str):
+        """
+        GET bulk historical data, best if only run once and manually
+        """
+        url = f"https://archive-api.open-meteo.com/v1/archive?latitude={self.lat}&longitude={self.lon}&start_date={start_date}&end_date={end_date}&hourly=temperature_2m,is_day,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation,weather_code,pressure_msl,surface_pressure,cloud_cover,cloud_cover_low,cloud_cover_mid,cloud_cover_high,et0_fao_evapotranspiration,vapour_pressure_deficit,wind_speed_10m,wind_direction_10m,wind_gusts_10m&timezone=auto"
+
+        if (start_date != "") and (end_date != ""):
+            if int(end_date.split("-")[0]) - int(start_date.split("-")[0]) > 1:
+                print(
+                    "WARNING: YOU ARE GOING TO REQUEST MORE THAN ONE YEAR'S WORTH OF DATA FROM THE API.\n\tTHIS WILL COST YOU A LOT OF API CALLS (UPWARDS OF HUNDREDS).\n\tPLEASE BE SURE YOU ARE NOT RUNNING THIS MULTIPLE TIMES AS IT WILL DEPLETE YOUR DAILY LIMIT!"
+                )
+            return self._make_request(url, OPEN_METEO_PROVIDER)
+        else:
+            print("Start date and/or end date parameter is not supplied.")
+            return None
 
     def send_to_kafka(self, topic, data, provider_name):
         """Sends data to the specified Kafka topic."""

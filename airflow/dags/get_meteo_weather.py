@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import pendulum
 import logging
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.python import PythonOperator
@@ -14,7 +18,7 @@ log = logging.getLogger(__name__)
 LATITUDE = -7.95
 LONGITUDE = 112.61
 KAFKA_TOPIC = "open-meteo"
-PROVIDER_NAME = "Open-Meteo"
+PROVIDER_NAME = os.getenv("OPEN_METEO_PROVIDER")
 
 
 def fetch_and_send_data():
