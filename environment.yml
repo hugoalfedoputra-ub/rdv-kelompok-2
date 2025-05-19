@@ -9,6 +9,9 @@ dependencies:
     - numpy
     - pip
     - pip:
+          - urllib3>=2
+          - boto3
+          - r2client
           - findspark
           - python-dotenv
           - seaborn
