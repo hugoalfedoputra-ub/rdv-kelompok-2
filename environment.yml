@@ -13,11 +13,11 @@ dependencies:
           - boto3
           - r2client
           - findspark
+          - pyarrow
           - python-dotenv
           - seaborn
           - matplotlib
           - psycopg2
-          - pyspark
           - requests
           - pycouchdb
           - kafka-python

@@ -3,24 +3,24 @@ from kafka import KafkaConsumer
 import datetime
 import pycouchdb
 import hashlib
-import os
+import pytz
 
 
 class KafkaETL:
     def __init__(
         self,
-        couchdb_url,  # e.g., "http://user:pass@couchdb-host:5984/"
-        bootstrap_servers=["localhost:29092"],  # e.g., ["kafka-host:9092"]
-        ctimeout_ms=1200000,  # 20 minutes
+        couchdb_url,
+        bootstrap_servers=["localhost:29092"],
+        ctimeout_ms=1200000,
     ):
         # The couchdb_url should now contain username, password, host, and port
         self.server = pycouchdb.Server(couchdb_url, authmethod="basic")
         try:
-            self.server.info()  # Test connection
+            self.server.info()
             print(f"Successfully connected to CouchDB at {couchdb_url.split('@')[-1]}")
         except Exception as e:
             print(f"Failed to connect to CouchDB: {e}")
-            raise  # Re-raise the exception to stop initialization if connection fails
+            raise
 
         self.bootstrap_servers = bootstrap_servers
         self.consumer_timeout_ms = ctimeout_ms
@@ -97,7 +97,7 @@ class KafkaETL:
 
             try:
                 res = db_fw.save(entry)
-                self.fw_consumer.commit()
+                # self.fw_consumer.commit()
             except Exception as e:
                 print(e)
                 continue
@@ -112,10 +112,21 @@ class KafkaETL:
             ct = datetime.datetime.now()
 
             m = hashlib.sha256()
-            last_updated = str(datetime.datetime.fromtimestamp(data["data"]["dt"]))
+            last_updated = str(
+                datetime.datetime.fromtimestamp(
+                    data["data"]["dt"], tz=pytz.timezone("Asia/Jakarta")
+                )
+            )
             res = "".join(format(ord(i), "08b") for i in last_updated).encode("utf-8")
             m.update(res)
             id = m.hexdigest()
+
+            # There might be a chance that visibility does not exist in the API result
+            vis = 0
+            try:
+                vis = data["data"]["visibility"]
+            except Exception as e:
+                print("Visibility data does not exist.", e)
 
             entry = {
                 "_id": id,
@@ -135,7 +146,7 @@ class KafkaETL:
                         "pressure": data["data"]["main"]["pressure"],
                         "sea_level": data["data"]["main"]["sea_level"],
                         "temp": data["data"]["main"]["temp"],
-                        "visibility": data["data"]["visibility"],
+                        "visibility": vis,
                         "wind_dir": data["data"]["wind"]["deg"],
                         "wind_speed": data["data"]["wind"]["speed"],
                         "wind_gust": data["data"]["wind"]["gust"],
@@ -143,14 +154,12 @@ class KafkaETL:
                     "weather": data["data"]["weather"],
                 },
                 "created_at": str(ct),
-                "last_updated": str(
-                    datetime.datetime.fromtimestamp(data["data"]["dt"])
-                ),
+                "last_updated": last_updated,
             }
 
             try:
                 res = db_ow.save(entry)
-                self.ow_consumer.commit()
+                # self.ow_consumer.commit()
             except Exception as e:
                 print(e)
                 continue
@@ -186,7 +195,7 @@ class KafkaETL:
 
             try:
                 res = db_om.save(entry)
-                self.om_consumer.commit()
+                # self.om_consumer.commit()
             except Exception as e:
                 print(e)
                 continue

@@ -1,4 +1,5 @@
 import os
+import traceback
 import threading
 import time
 from dotenv import load_dotenv
@@ -57,6 +58,7 @@ def kafka_loader_worker(kettle_instance, load_method_name, consumer_name):
             print(
                 f"[{thread_name}] for '{consumer_name}': Error during processing: {e}"
             )
+            print(traceback.format_exc())
             # You might want to add more specific error handling or backoff logic here
     finally:
         if shutdown_event.is_set():

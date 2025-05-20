@@ -1,0 +1,18 @@
+FROM apache/spark:3.5.1-scala2.12-java11-python3-r-ubuntu
+
+USER root
+
+# Install rsync and openssh-client
+RUN apt-get update && \
+    apt-get install -y rsync openssh-client && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy the Spark Connect JAR into the image's Spark JARs directory
+# Ensure your downloaded JAR is in a 'jars' subdirectory relative to this Dockerfile
+COPY ./jars/spark-connect_2.12-3.5.1.jar /opt/spark/jars/
+
+# Ensure correct permissions for the copied JAR (though usually fine with COPY as root)
+RUN chown spark:spark /opt/spark/jars/spark-connect_2.12-3.5.1.jar && \
+    chmod 644 /opt/spark/jars/spark-connect_2.12-3.5.1.jar
+
+USER 185

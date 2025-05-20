@@ -48,14 +48,14 @@ x-airflow-common: &airflow-common
     # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
     # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
     # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
-    image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.0.0}
+    image: vmois-slim-airflow:1.0
     # build: .
     environment: &airflow-common-env
         AIRFLOW__CORE__EXECUTOR: CeleryExecutor
         AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
         AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-        AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
-        AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
+        # AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
+        # AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
         AIRFLOW__CORE__FERNET_KEY: ""
         AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
         AIRFLOW__CORE__LOAD_EXAMPLES: "false"
@@ -72,7 +72,8 @@ x-airflow-common: &airflow-common
 
         # WARNING: Use _PIP_ADDITIONAL_REQUIREMENTS option ONLY for a quick checks
         # for other purpose (development, test and especially production usage) build/extend Airflow image.
-        _PIP_ADDITIONAL_REQUIREMENTS: "kafka-python python-dotenv requests"
+        # _PIP_ADDITIONAL_REQUIREMENTS: "kafka-python python-dotenv requests"
+        _PIP_ADDITIONAL_REQUIREMENTS: ""
 
         # The following line can be used to set a custom config file, stored in the local config folder
         AIRFLOW_CONFIG: "/opt/airflow/config/airflow.cfg"
@@ -105,6 +106,8 @@ services:
             retries: 5
             start_period: 5s
         restart: always
+        mem_limit: "384m"
+        cpus: 1
 
     redis:
         # Redis is limited to 7.2-bookworm due to licencing change
@@ -121,6 +124,7 @@ services:
             retries: 50
             start_period: 30s
         restart: always
+        mem_limit: "384m"
 
     airflow-apiserver:
         <<: *airflow-common
@@ -137,6 +141,8 @@ services:
             retries: 5
             start_period: 30s
         restart: always
+        mem_limit: "768m"
+        cpus: 1
         depends_on:
             <<: *airflow-common-depends-on
             airflow-init:
@@ -155,6 +161,8 @@ services:
             retries: 5
             start_period: 30s
         restart: always
+        mem_limit: "384m"
+        cpus: 1
         depends_on:
             <<: *airflow-common-depends-on
             airflow-init:
@@ -172,6 +180,8 @@ services:
             retries: 5
             start_period: 30s
         restart: always
+        mem_limit: "384m"
+        cpus: 1
         depends_on:
             <<: *airflow-common-depends-on
             airflow-init:
@@ -198,6 +208,7 @@ services:
             # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
             DUMB_INIT_SETSID: "0"
         restart: always
+        mem_limit: "1440m"
         depends_on:
             <<: *airflow-common-depends-on
             airflow-apiserver:
@@ -217,6 +228,7 @@ services:
             retries: 5
             start_period: 30s
         restart: always
+        mem_limit: "256m"
         depends_on:
             <<: *airflow-common-depends-on
             airflow-init:
@@ -337,27 +349,27 @@ services:
     # You can enable flower by adding "--profile flower" option e.g. docker-compose --profile flower up
     # or by explicitly targeted on the command line e.g. docker-compose up flower.
     # See: https://docs.docker.com/compose/profiles/
-    flower:
-        <<: *airflow-common
-        command: celery flower
-        profiles:
-            - flower
-        networks:
-            - proxy
-            - airflow-internal
-        ports:
-            - "5555:5555"
-        healthcheck:
-            test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
-            interval: 30s
-            timeout: 10s
-            retries: 5
-            start_period: 30s
-        restart: always
-        depends_on:
-            <<: *airflow-common-depends-on
-            airflow-init:
-                condition: service_completed_successfully
+    # flower:
+    #     <<: *airflow-common
+    #     command: celery flower
+    #     profiles:
+    #         - flower
+    #     networks:
+    #         - proxy
+    #         - airflow-internal
+    #     ports:
+    #         - "5555:5555"
+    #     healthcheck:
+    #         test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
+    #         interval: 30s
+    #         timeout: 10s
+    #         retries: 5
+    #         start_period: 30s
+    #     restart: always
+    #     depends_on:
+    #         <<: *airflow-common-depends-on
+    #         airflow-init:
+    #             condition: service_completed_successfully
 
 volumes:
     postgres-db-volume:

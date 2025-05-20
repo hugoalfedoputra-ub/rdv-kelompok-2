@@ -1,0 +1,48 @@
+{
+    "provider": "Open-Meteo",
+    "latitude": -7.95,
+    "longitude": 112.61,
+    "data": {
+        "latitude": -8.0,
+        "longitude": 112.625,
+        "generationtime_ms": 0.8713006973266602,
+        "utc_offset_seconds": 25200,
+        "timezone": "Asia/Bangkok",
+        "timezone_abbreviation": "GMT+7",
+        "elevation": 502.0,
+        "current_units": {
+            "time": "iso8601",
+            "interval": "seconds",
+            "temperature_2m": "°C",
+            "apparent_temperature": "°C",
+            "relative_humidity_2m": "%",
+            "rain": "mm",
+            "precipitation": "mm",
+            "weather_code": "wmo code",
+            "cloud_cover": "%",
+            "showers": "mm",
+            "wind_speed_10m": "km/h",
+            "wind_direction_10m": "°",
+            "pressure_msl": "hPa",
+            "surface_pressure": "hPa",
+            "wind_gusts_10m": "km/h"
+        },
+        "current": {
+            "time": "2025-05-13T09:15",
+            "interval": 900,
+            "temperature_2m": 27.4,
+            "apparent_temperature": 32.0,
+            "relative_humidity_2m": 70,
+            "rain": 0.0,
+            "precipitation": 0.0,
+            "weather_code": 3,
+            "cloud_cover": 92,
+            "showers": 0.0,
+            "wind_speed_10m": 1.1,
+            "wind_direction_10m": 72,
+            "pressure_msl": 1011.9,
+            "surface_pressure": 956.1,
+            "wind_gusts_10m": 6.1
+        }
+    }
+}

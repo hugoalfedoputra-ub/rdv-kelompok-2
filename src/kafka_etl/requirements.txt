@@ -3,3 +3,4 @@ pycouchdb
 python-dotenv
 requests
 urllib3
+pytz

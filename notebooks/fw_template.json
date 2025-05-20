@@ -1,0 +1,52 @@
+{
+    "provider": "FreeWeatherAPI",
+    "latitude": -7.95,
+    "longitude": 112.61,
+    "data": {
+        "location": {
+            "name": "Malang",
+            "region": "East Java",
+            "country": "Indonesia",
+            "lat": -7.98,
+            "lon": 112.63,
+            "tz_id": "Asia/Jakarta",
+            "localtime_epoch": 1747102981,
+            "localtime": "2025-05-13 09:23"
+        },
+        "current": {
+            "last_updated_epoch": 1747102500,
+            "last_updated": "2025-05-13 09:15",
+            "temp_c": 23.1,
+            "temp_f": 73.5,
+            "is_day": 1,
+            "condition": {
+                "text": "Patchy rain nearby",
+                "icon": "//cdn.weatherapi.com/weather/64x64/day/176.png",
+                "code": 1063
+            },
+            "wind_mph": 2.2,
+            "wind_kph": 3.6,
+            "wind_degree": 88,
+            "wind_dir": "E",
+            "pressure_mb": 1012.0,
+            "pressure_in": 29.89,
+            "precip_mm": 0.02,
+            "precip_in": 0.0,
+            "humidity": 88,
+            "cloud": 94,
+            "feelslike_c": 25.3,
+            "feelslike_f": 77.5,
+            "windchill_c": 23.1,
+            "windchill_f": 73.5,
+            "heatindex_c": 25.3,
+            "heatindex_f": 77.5,
+            "dewpoint_c": 21.0,
+            "dewpoint_f": 69.8,
+            "vis_km": 10.0,
+            "vis_miles": 6.0,
+            "uv": 1.9,
+            "gust_mph": 6.7,
+            "gust_kph": 10.8
+        }
+    }
+}

@@ -1,0 +1,112 @@
+# Source
+# https://medium.com/@yssmelo/spark-connect-launch-spark-applications-anywhere-with-the-client-server-architecture-dbt-f99399c566fe
+# with modifications
+
+---
+services:
+    spark-master:
+        # Master doesn't need rsync/ssh or ivy cache fixes
+        build:
+            context: .
+            dockerfile: Dockerfile.master
+        container_name: spark-master
+        hostname: spark-master
+        networks:
+            - proxy
+        ports:
+            - "9090:8080"
+            - "7077:7077"
+        environment:
+            - SPARK_MASTER_HOST=spark-master
+            - SPARK_MASTER_PORT=7077
+            - SPARK_MASTER_WEBUI_PORT=8080
+            - SPARK_DAEMON_MEMORY=256m
+        entrypoint:
+            - "bash"
+            - "-c"
+            - "/opt/spark/sbin/start-master.sh && tail -f /dev/null"
+        volumes:
+            - ./data:/opt/spark/data_on_host:rw
+        deploy:
+            resources:
+                limits:
+                    memory: 512M
+                reservations:
+                    memory: 256M
+
+    spark-worker:
+        build:
+            context: .
+            dockerfile: Dockerfile.worker
+        container_name: spark-worker
+        hostname: spark-worker
+        networks:
+            - proxy
+        depends_on:
+            - spark-master
+        environment:
+            - SPARK_MASTER=spark://spark-master:7077
+            # - SPARK_WORKER_MEMORY=1024m
+            # - SPARK_WORKER_CORES=1
+            - SPARK_WORKER_WEBUI_PORT=8081
+            - SPARK_DAEMON_MEMORY=256m
+        entrypoint:
+            - "bash"
+            - "-c"
+            - "/opt/spark/sbin/start-worker.sh spark://spark-master:7077 && tail -f /dev/null"
+        volumes:
+            - ./data:/opt/spark/data_on_host:rw
+        deploy:
+            resources:
+                limits:
+                    memory: 1536M
+                reservations:
+                    memory: 1024M
+
+    spark-connect:
+        build:
+            context: .
+            dockerfile: Dockerfile.connect # Use the new Dockerfile for connect server
+        # image: apache/spark:3.5.1 # Remove this, use build instead
+        container_name: spark-connect
+        hostname: spark-connect
+        networks:
+            - proxy
+        ports:
+            - "4040:4040"
+            - "15002:15002"
+        depends_on:
+            - spark-master
+        environment:
+            - SPARK_DAEMON_JAVA_OPTS=-Xms512m -Xmx768m
+            # Ensure Ivy uses the directory we created and chowned
+            # This tells Ivy to use a specific user home for its settings, which includes .ivy2 path
+            - IVY_HOME=/home/spark/.ivy2
+            - SPARK_EXECUTOR_OPTS=-Djdk.reflect.useDirectMethodHandle=false
+        volumes:
+            # - ./jars/spark-connect_2.12-3.5.1.jar:/opt/spark/jars/spark-connect_2.12-3.5.1.jar
+            - ./data:/opt/spark/data_on_host:rw
+            # Optional: You could also mount a volume for the .ivy2 cache to persist it
+            # - spark_ivy_cache:/home/spark/.ivy2
+        command:
+            - "bash"
+            - "-c"
+            - >-
+                /opt/spark/sbin/start-connect-server.sh
+                --conf spark.master=spark://spark-master:7077
+                --conf "spark.executor.extraJavaOptions=-Djdk.reflect.useDirectMethodHandle=false"
+                && tail -f /dev/null
+            # - "/opt/spark/sbin/start-connect-server.sh --packages org.apache.spark:spark-connect_2.12:3.5.1 --conf spark.master=spark://spark-master:7077 && tail -f /dev/null"
+            # - "/opt/spark/sbin/start-connect-server.sh --jars /opt/spark/jars/spark-connect_2.12-3.5.1.jar --conf spark.master=spark://spark-master:7077 && tail -f /dev/null"
+            # - "/opt/spark/sbin/start-connect-server.sh --conf spark.master=spark://spark-master:7077 && tail -f /dev/null"
+        deploy:
+            resources:
+                limits:
+                    memory: 1024M # Increased slightly just in case Ivy resolution takes a bit more
+                reservations:
+                    memory: 896M
+
+networks:
+    proxy:
+        name: proxy
+        external: true

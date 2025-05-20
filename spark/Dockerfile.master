@@ -1,0 +1,13 @@
+FROM apache/spark:3.5.1-scala2.12-java11-python3-r-ubuntu
+
+USER root
+
+# Copy the Spark Connect JAR into the image's Spark JARs directory
+COPY ./jars/spark-connect_2.12-3.5.1.jar /opt/spark/jars/
+
+# Ensure correct permissions
+RUN chown spark:spark /opt/spark/jars/spark-connect_2.12-3.5.1.jar && \
+    chmod 644 /opt/spark/jars/spark-connect_2.12-3.5.1.jar
+
+# Spark user
+USER 185

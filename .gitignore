@@ -2,6 +2,8 @@
 data/
 airflow/*
 pipeline/*
+jars/
+spark_environment.yml
 
 !.env.example
 !dags
