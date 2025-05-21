@@ -6,9 +6,10 @@
 services:
     spark-master:
         # Master doesn't need rsync/ssh or ivy cache fixes
-        build:
-            context: .
-            dockerfile: Dockerfile.master
+        # build:
+        #     context: .
+        #     dockerfile: Dockerfile.master
+        image: spark-image
         container_name: spark-master
         hostname: spark-master
         networks:
@@ -35,9 +36,10 @@ services:
                     memory: 256M
 
     spark-worker:
-        build:
-            context: .
-            dockerfile: Dockerfile.worker
+        # build:
+        #     context: .
+        #     dockerfile: Dockerfile.worker
+        image: spark-image
         container_name: spark-worker
         hostname: spark-worker
         networks:
@@ -64,10 +66,10 @@ services:
                     memory: 1024M
 
     spark-connect:
-        build:
-            context: .
-            dockerfile: Dockerfile.connect # Use the new Dockerfile for connect server
-        # image: apache/spark:3.5.1 # Remove this, use build instead
+        # build:
+        #     context: .
+        #     dockerfile: Dockerfile.connect
+        image: spark-image
         container_name: spark-connect
         hostname: spark-connect
         networks:
