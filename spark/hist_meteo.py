@@ -14,13 +14,10 @@ os.environ['PYSPARK_DRIVER_PYTHON'] = sys.executable
 
 class SparkWeatherLoader():
     def __init__(self):
-        self.spark = self.getSparkSession(appName="SparkWeatherLoader")
+        self.spark = self.getSparkSession()
 
-    def getSparkSession(self, appName:str)->SparkSession:
-        spark = SparkSession.builder \
-            .appName(appName) \
-            .master("local[*]") \
-            .getOrCreate()
+    def getSparkSession(self)->SparkSession:
+        spark = SparkSession.builder.remote("sc://localhost:15002").getOrCreate()
         return spark
     
     def fetchHistorical(self, features:list, locations:dict[str, tuple], start_date:str, end_date:str) -> DataFrame:
@@ -112,6 +109,7 @@ class SparkWeatherLoader():
         today = datetime.today()
         end_date = today.strftime("%Y-%m-%d")
         start_date = today - timedelta(days=day_length)
+        start_date = start_date.strftime("%Y-%m-%d")
 
         success = False
         attempts = 0
