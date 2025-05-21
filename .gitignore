@@ -2,7 +2,7 @@
 data/
 airflow/*
 pipeline/*
-jars/
+# jars/
 spark_environment.yml
 
 !.env.example
