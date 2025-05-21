@@ -5,6 +5,8 @@ pipeline/*
 # jars/
 spark_environment.yml
 
+!Dockerfile
+!requirements.txt
 !.env.example
 !dags
 !docker-compose.yaml
