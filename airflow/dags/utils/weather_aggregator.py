@@ -5,44 +5,51 @@ class Aggregator:
     def __init__(self, column_map:dict=None):
         if column_map==None:
             self.column_map={
+                # Time
+                "localtime": "time",
+
                 # Temperature
                 "temperature_2m": "temperature_c",
-                "temp_c": "temperature_c",
+                "temp": "temperature_c",
                 "temperature_c": "temperature_c",
 
                 # Feels like
+                "apparent_temperature": "feels_like_c",
                 "feelslike_c": "feels_like_c",
-                "feels_like_c": "feels_like_c",
+                "feels_like": "feels_like_c",
 
                 # Humidity
                 "relative_humidity_2m": "humidity_pct",
                 "humidity": "humidity_pct",
-                "humidity_pct": "humidity_pct",
 
                 # Wind speed
                 "wind_speed_10m": "wind_speed_kmph",
                 "wind_kph": "wind_speed_kmph",
-                "wind_speed_kmph": "wind_speed_kmph",
+                "wind_speed": "wind_speed_kmph",
 
                 # Wind gust
                 "wind_gusts_10m": "wind_gust_kmph",
                 "gust_kph": "wind_gust_kmph",
-                "wind_gust_kmph": "wind_gust_kmph",
+                "wind_gust": "wind_gust_kmph",
 
                 # Wind degree
-                "wind_direction_10m": "wind_deg",
-                "wind_degree": "wind_deg",
-                "wind_deg": "wind_deg",
+                "wind_direction_10m": "wind_degree",
+
+                # Pressure
+                "pressure_mb" : "pressure",
+                "pressure_msl" : "pressure",
 
                 # Cloud
                 "cloud_cover": "cloud_total_pct",
                 "cloud": "cloud_total_pct",
-                "cloud_total_pct": "cloud_total_pct",
+                "all": "cloud_total_pct",
 
                 # Lokasi
                 "district": "district",
                 "latitude": "latitude",
-                "longitude": "longitude"
+                "lat" : "latitude",
+                "longitude": "longitude",
+                "lon" : "longitude"
             }
         else :
             self.column_map = column_map
