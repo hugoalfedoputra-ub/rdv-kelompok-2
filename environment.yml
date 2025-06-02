@@ -17,8 +17,9 @@ dependencies:
           - python-dotenv
           - seaborn
           - matplotlib
-        #   - psycopg2
+          #   - psycopg2
           - requests
           - pycouchdb
+          - couchdb
           - kafka-python
           - "apache-airflow[celery]==3.0.1"
