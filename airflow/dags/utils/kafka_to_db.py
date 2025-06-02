@@ -1,7 +1,7 @@
 import json
 from kafka import KafkaConsumer
 import datetime
-import pycouchdb
+import couchdb
 import hashlib
 import pytz
 
@@ -14,9 +14,9 @@ class KafkaETL:
         ctimeout_ms=1200000,
     ):
         # The couchdb_url should now contain username, password, host, and port
-        self.server = pycouchdb.Server(couchdb_url, authmethod="basic")
+        self.server = couchdb.Server(couchdb_url)
         try:
-            self.server.info()
+            self.server.version_info()
             print(f"Successfully connected to CouchDB at {couchdb_url.split('@')[-1]}")
         except Exception as e:
             print(f"Failed to connect to CouchDB: {e}")
@@ -72,7 +72,7 @@ class KafkaETL:
             raise  # Re-raise
 
     def load_free_weather(self):
-        db_fw = self.server.database("free_weather")
+        db_fw = self.server["free_weather"]
 
         for message in self.fw_consumer:
             data = message.value
@@ -103,7 +103,7 @@ class KafkaETL:
                 continue
 
     def load_open_weather(self):
-        db_ow = self.server.database("open_weather")
+        db_ow = self.server["open_weather"]
 
         for message in self.ow_consumer:
             data = message.value
@@ -165,7 +165,7 @@ class KafkaETL:
                 continue
 
     def load_open_meteo(self):
-        db_om = self.server.database("open_meteo")
+        db_om = self.server["open_meteo"]
 
         for message in self.om_consumer:
             data = message.value
