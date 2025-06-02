@@ -31,9 +31,9 @@ services:
         deploy:
             resources:
                 limits:
-                    memory: 512M
+                    memory: 1024M
                 reservations:
-                    memory: 256M
+                    memory: 512M
 
     spark-worker:
         # build:
@@ -61,7 +61,7 @@ services:
         deploy:
             resources:
                 limits:
-                    memory: 1536M
+                    memory: 2048M
                 reservations:
                     memory: 1024M
 
@@ -104,9 +104,9 @@ services:
         deploy:
             resources:
                 limits:
-                    memory: 1024M # Increased slightly just in case Ivy resolution takes a bit more
+                    memory: 2048M # Increased slightly just in case Ivy resolution takes a bit more
                 reservations:
-                    memory: 896M
+                    memory: 1024M
 
 networks:
     proxy:

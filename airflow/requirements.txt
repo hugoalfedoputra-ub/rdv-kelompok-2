@@ -1,5 +1,6 @@
 kafka-python 
 python-dotenv 
 requests
-pyspark
+pyspark===3.4.3
 couchdb
+protobuf==4.23.0

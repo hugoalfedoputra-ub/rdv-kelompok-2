@@ -5,12 +5,9 @@ class Aggregator:
     def __init__(self, column_map:dict=None):
         if column_map==None:
             self.column_map={
-                # Time
-                "localtime": "time",
-
                 # Temperature
                 "temperature_2m": "temperature_c",
-                "temp": "temperature_c",
+                "temp_c": "temperature_c",
                 "temperature_c": "temperature_c",
 
                 # Feels like
