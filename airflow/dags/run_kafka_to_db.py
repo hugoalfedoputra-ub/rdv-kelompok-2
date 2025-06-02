@@ -163,7 +163,7 @@ def main():
 
 
 with DAG(
-    dag_id="open_weather_fetch_to_kafka",
+    dag_id="kafka_to_couchdb_loader",
     start_date=pendulum.datetime(2023, 1, 1, tz="UTC"),
     schedule="* * * * *",
     catchup=False,
