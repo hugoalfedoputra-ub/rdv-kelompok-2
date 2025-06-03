@@ -17,11 +17,6 @@ from utils.weather_aggregator import Aggregator
 from utils.schemas import WeatherSchemas
 from pyspark.sql.utils import AnalysisException
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s]:%(message)s"
-)
-
 # PySpark variables
 PYSPARK_WORKER_URI = Variable.get("PYSPARK_WORKER_URI")
 
@@ -40,9 +35,8 @@ server = couchdb.Server(COUCHDB_URI)
 db_name_list = [FREEWEATHER_DB, OPENMETEO_DB, OPENWEATHER_DB]
 
 logging.basicConfig(
-    level=logging.DEBUG,  # Ubah ke DEBUG supaya semua log tampil
-    format="[%(levelname)s] %(asctime)s - %(name)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    level=logging.DEBUG,
+    format="[%(name)s] - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -123,7 +117,7 @@ def fetch_data(spark=None):
             "name": "timestamp_index",
             "type": "json"
         }
-        index_url = f"{COUCHDB_URI}/{FREEWEATHER_DB}/_index"
+        index_url = f"{COUCHDB_URI}/{db_name}/_index"
         resp = requests.post(index_url, json=index_def)
         logger.info("Index creation:", resp.status_code, resp.text)
 
@@ -143,13 +137,13 @@ def fetch_data(spark=None):
         db = server[db_name]
         try:
             rows = db.find(query)
+            list_rows = list(rows)
         except Exception as e:
             logger.error(f"Error fetching rows from {db_name}: {e}")
             continue
 
-        for row in rows:
-            doc = row.get("doc", {})
-            doc = flatten_dict(doc)
+        for row in list_rows:
+            doc = flatten_dict(row)
             temp_list.append(doc)
 
         if not temp_list:
@@ -418,7 +412,7 @@ with DAG(
     dag_id="aggregate_from_three_source",
     description="Aggregate data from FreeWeather, OpenMeteo, and OpenWeather to CouchDB",
     start_date=datetime(2025, 5, 1),
-    schedule="  ",
+    schedule="0 * * * *",
     catchup=False,
     default_args={
         "owner": "airflow",

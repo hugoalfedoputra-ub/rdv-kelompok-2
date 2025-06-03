@@ -5,10 +5,13 @@ class Aggregator:
     def __init__(self, column_map:dict=None):
         if column_map==None:
             self.column_map={
+                # date
+                "last_updated" : "date",
+
                 # Temperature
                 "temperature_2m": "temperature_c",
+                "temp": "temperature_c",
                 "temp_c": "temperature_c",
-                "temperature_c": "temperature_c",
 
                 # Feels like
                 "apparent_temperature": "feels_like_c",
@@ -30,9 +33,11 @@ class Aggregator:
                 "wind_gust": "wind_gust_kmph",
 
                 # Wind degree
+                "wind_degree" : "wind_degree",
                 "wind_direction_10m": "wind_degree",
 
                 # Pressure
+                "pressure" : "pressure",
                 "pressure_mb" : "pressure",
                 "pressure_msl" : "pressure",
 
@@ -61,7 +66,7 @@ class Aggregator:
         renamed_cols = [col(c).alias(col_map[c]) for c in df.columns if c in col_map]
         return df.select(*renamed_cols)
     
-    def aggregate_common_columns(dfs: list[DataFrame], group_cols: list[str] = ["district", "latitude", "longitude"]) -> DataFrame:
+    def aggregate_common_columns(self, dfs: list[DataFrame], group_cols: list[str] = ["district", "latitude", "longitude"]) -> DataFrame:
         """
         Menggabungkan dan mengagregasi kolom-kolom yang sama dari beberapa DataFrame PySpark.
         

@@ -21,11 +21,9 @@ LONGITUDE = 112.61
 KAFKA_TOPIC = "free-weather"
 PROVIDER_NAME = os.getenv("FREE_WEATHER_PROVIDER")
 
+producer: WeatherProducer = None
 
-def fetch_and_send_data():
-
-    producer = None
-
+def fetch_data():
     try:
         log.info(f"Initializing WeatherProducer for {PROVIDER_NAME}...")
         producer = WeatherProducer(
@@ -39,26 +37,44 @@ def fetch_and_send_data():
         data = producer.get_free_weather()
 
         if data:
-            log.info(
-                f"Fetched data from {PROVIDER_NAME}. Sending to Kafka topic '{KAFKA_TOPIC}'..."
-            )
-            success = producer.send_to_kafka(KAFKA_TOPIC, data, PROVIDER_NAME)
-            if not success:
-                raise RuntimeError(f"Failed to send data for {PROVIDER_NAME} to Kafka.")
-            else:
-                log.info(f"Successfully sent data from {PROVIDER_NAME} to Kafka.")
+            return data
         else:
             log.warning(f"No data received from {PROVIDER_NAME}.")
 
     except Exception as e:
         log.error(
-            f"Error in fetch_and_send_data for {PROVIDER_NAME}: {e}", exc_info=True
+            f"Error in fetch_data for {PROVIDER_NAME}: {e}", exc_info=True
         )
         raise
     finally:
         if producer:
             producer.close()
 
+
+def send_data_to_kafka(pulled_data: dict | None):
+    if pulled_data is None:
+        log.info(f"No data received from upstream task for {PROVIDER_NAME}. Skipping send to Kafka.")
+        return
+    
+    producer = WeatherProducer(
+            lat=LATITUDE, lon=LONGITUDE, server_addr="broker-1:19092"
+        )
+    if not producer.producer:
+        raise RuntimeError(
+            "Failed to initialize Kafka Producer in WeatherProducer."
+        )
+    
+    log.info(
+        f"Fetched data from {PROVIDER_NAME}. Sending to Kafka topic '{KAFKA_TOPIC}'..."
+    )
+    success = producer.send_to_kafka(KAFKA_TOPIC, pulled_data, PROVIDER_NAME)
+    if not success:
+        raise RuntimeError(f"Failed to send data for {PROVIDER_NAME} to Kafka.")
+    else:
+        log.info(f"Successfully sent data from {PROVIDER_NAME} to Kafka.")
+
+    if producer:
+        producer.close()
 
 with DAG(
     dag_id="free_weather_fetch_to_kafka",
@@ -74,6 +90,14 @@ with DAG(
     """,
 ) as dag:
     fetch_free_weather_task = PythonOperator(
-        task_id="fetch_and_send_free_weather",
-        python_callable=fetch_and_send_data,
+        task_id="fetch_free_weather",
+        python_callable=fetch_data,
     )
+
+    send_free_weather_task = PythonOperator(
+        task_id="send_free_weather",
+        python_callable=send_data_to_kafka,
+        op_kwargs={'pulled_data': fetch_free_weather_task.output}
+    )
+
+    fetch_free_weather_task >> send_free_weather_task
