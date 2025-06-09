@@ -22,7 +22,7 @@ class ProphetWrapper:
         self.df_train = df.copy()
         self.fitted = True
 
-    def predict(self, periods: int, freq: str = 'H', only_future: bool = True):
+    def predict(self, periods: int, freq: str = 'H', only_future: bool = True) -> pd.DataFrame:
         """
         Membuat prediksi ke depan sebanyak 'periods' langkah dengan frekuensi 'freq'.
         only_future:
@@ -38,9 +38,9 @@ class ProphetWrapper:
 
         if only_future:
             forecast_tail = self.forecast.tail(periods)
-            return forecast_tail[['ds', 'yhat']].set_index('ds')['yhat']
+            return forecast_tail[['ds', 'yhat']]
         else:
-            return self.forecast[['ds', 'yhat']].set_index('ds')['yhat']
+            return self.forecast[['ds', 'yhat']]
 
     def plot(self):
         """Plot hasil prediksi jika sudah ada."""

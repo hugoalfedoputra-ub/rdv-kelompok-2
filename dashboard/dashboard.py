@@ -1,11 +1,24 @@
+import os
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+
+from dotenv import load_dotenv
 from datetime import datetime
 from sqlite import sqliteModel
+from prophetModel import ProphetWrapper
+
+load_dotenv()
+SQLITE_PATH = os.getenv("SQLITE_PATH", "weather.db")
+HOUR_SLICING = 8
+MINUTE_SLICING = 16
+HOURLY_FORECAST_LENGTH = 12
+MINUTELY_FORECAST_LENGTH = 48
+
+db_model = sqliteModel(SQLITE_PATH)
 
 # Page configuration
 st.set_page_config(
@@ -120,43 +133,128 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Mock weather data
-def get_weather_data():
-    return {
-        'current_temp': 24,
-        'condition': 'Partly Cloudy',
-        'humidity': 65,
-        'wind_speed': 12,
-        'pressure': 1013,
-        'Wind_Speed': 6,
-        'humidity': 66,
-        'feels_like': 26
-    }
+def get_sequence_data():
+    # Feels Like Sequencial Making
+    feels_like = db_model.get_all_hourly_feelslike()
+    hours = feels_like["timestamp"].dt.strftime("%H:%M").to_list()[-HOUR_SLICING:]
+    feelslike_historical = feels_like["feels_like_c"].to_list()[-HOUR_SLICING:]
+    # Forecast + Concate
+    train = feels_like.rename(columns={"timestamp":"ds", "feels_like_c":"y"})
+    feelslike_model = ProphetWrapper()
+    feelslike_model.fit(train)
+    predict = feelslike_model.predict(periods=HOURLY_FORECAST_LENGTH)
+    predict_value = predict["yhat"].to_list()
+    feelslike_final = feelslike_historical + predict_value
+    hours = hours + predict["ds"].dt.strftime("%H:%M").to_list()
+    normalized_hours = [
+    datetime.strptime(t, "%H:%M").replace(minute=0).strftime("%H:%M")
+    for t in hours
+    ]
 
-def get_forecast_data():
-    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    conditions = ['Cloudy', 'Sunny', 'Rainy', 'Sunny', 'Partly Cloudy', 'Sunny', 'Cloudy']
-    temps_high = [25, 28, 22, 30, 27, 29, 24]
-    temps_low = [15, 18, 12, 20, 17, 19, 14]
-    
+    # Temperature Sequencial Making
+    temps = db_model.get_all_hourly_temperature()
+    temp_historical = temps["temperature_c"].to_list()[-HOUR_SLICING:]
+    # Forecast + Concate
+    train = temps.rename(columns={"timestamp":"ds", "temperature_c":"y"})
+    temp_model = ProphetWrapper()
+    temp_model.fit(train)
+    predict = temp_model.predict(periods=HOURLY_FORECAST_LENGTH)
+    predict_value = predict["yhat"].to_list()
+    temp_final = temp_historical + predict_value
+
+    # Humidity Sequencial Making
+    humidity = db_model.get_all_hourly_humidity()
+    humidity_historical = humidity["humidity_pct"].to_list()[-HOUR_SLICING:]
+    # Forecast + Concate
+    train = humidity.rename(columns={"timestamp":"ds", "humidity_pct":"y"})
+    humidity_model = ProphetWrapper()
+    humidity_model.fit(train)
+    predict = humidity_model.predict(periods=HOURLY_FORECAST_LENGTH)
+    predict_value = predict["yhat"].to_list()
+    humidity_final = humidity_historical + predict_value
+
+    # Precipitation Sequencial Making
+    precipitation = db_model.get_hourly_precipitation()
+    precipitation_historical = precipitation["precip_mm"].to_list()[-HOUR_SLICING:]
+    # Forecast + Concate
+    train = precipitation.rename(columns={"timestamp":"ds", "precip_mm":"y"})
+    precipitation_model = ProphetWrapper()
+    precipitation_model.fit(train)
+    predict = precipitation_model.predict(periods=HOURLY_FORECAST_LENGTH)
+    predict_value = predict["yhat"].to_list()
+    precipitation_final = precipitation_historical + predict_value
+
     return pd.DataFrame({
-        'Day': days,
-        'Condition': conditions,
-        'High': temps_high,
-        'Low': temps_low
+        'Hour': normalized_hours,
+        'Temperature': temp_final,
+        'Humidity': humidity_final,
+        'Feels_Like': feelslike_final,
+        "Precipitation" : precipitation_final
     })
 
-def get_hourly_data():
-    hours = [f"{i:02d}:00" for i in range(24)]
-    feels_like = np.random.normal(26, 3, 24)
-    temps = np.random.normal(24, 3, 24)
-    humidity = np.random.normal(65, 10, 24)
-    
+def round_down_to_nearest_15(t):
+    dt = datetime.strptime(t, "%H:%M")
+    minute = (dt.minute // 15) * 15
+    return dt.replace(minute=minute, second=0).strftime("%H:%M")
+
+def get_quarterly_data():
+    # Feels Like Sequencial Making
+    feels_like = db_model.get_all_quarter_feelslike()
+    feels_like = feels_like.groupby("timestamp", as_index=False).mean()
+    hours = feels_like["timestamp"].dt.strftime("%H:%M").to_list()[-MINUTE_SLICING:]
+    feelslike_historical = feels_like["feelslike_c"].to_list()[-MINUTE_SLICING:]
+    # Forecast + Concate
+    train = feels_like.rename(columns={"timestamp":"ds", "feelslike_c":"y"})
+    feelslike_model = ProphetWrapper()
+    feelslike_model.fit(train)
+    predict = feelslike_model.predict(periods=MINUTELY_FORECAST_LENGTH)
+    predict_value = predict["yhat"].to_list()
+    feelslike_final = feelslike_historical + predict_value
+    hours = hours + predict["ds"].dt.strftime("%H:%M").to_list()
+    normalized_hours = [round_down_to_nearest_15(t) for t in hours]
+
+    # Temperature Sequencial Making
+    temps = db_model.get_all_quarter_temperature()
+    temps = temps.groupby("timestamp", as_index=False).mean()
+    temp_historical = temps["temp_c"].to_list()[-MINUTE_SLICING:]
+    # Forecast + Concate
+    train = temps.rename(columns={"timestamp":"ds", "temp_c":"y"})
+    temp_model = ProphetWrapper()
+    temp_model.fit(train)
+    predict = temp_model.predict(periods=MINUTELY_FORECAST_LENGTH)
+    predict_value = predict["yhat"].to_list()
+    temp_final = temp_historical + predict_value
+
+    # Humidity Sequencial Making
+    humidity = db_model.get_all_quarter_humidity()
+    humidity = humidity.groupby("timestamp", as_index=False).mean()
+    humidity_historical = humidity["humidity"].to_list()[-MINUTE_SLICING:]
+    # Forecast + Concate
+    train = humidity.rename(columns={"timestamp":"ds", "humidity":"y"})
+    humidity_model = ProphetWrapper()
+    humidity_model.fit(train)
+    predict = humidity_model.predict(periods=MINUTELY_FORECAST_LENGTH)
+    predict_value = predict["yhat"].to_list()
+    humidity_final = humidity_historical + predict_value
+
+    # Precipitation Sequencial Making
+    precipitation = db_model.get_quarter_precipitation()
+    precipitation = precipitation.groupby("timestamp", as_index=False).mean()
+    precipitation_historical = precipitation["precip_mm"].to_list()[-MINUTE_SLICING:]
+    # Forecast + Concate
+    train = precipitation.rename(columns={"timestamp":"ds", "precip_mm":"y"})
+    precipitation_model = ProphetWrapper()
+    precipitation_model.fit(train)
+    predict = precipitation_model.predict(periods=MINUTELY_FORECAST_LENGTH)
+    predict_value = predict["yhat"].to_list()
+    precipitation_final = precipitation_historical + predict_value
+
     return pd.DataFrame({
-        'Hour': hours,
-        'Temperature': temps,
-        'Humidity': humidity,
-        'Feels_Like': feels_like
+        'Hour': normalized_hours,
+        'Temperature': temp_final,
+        'Humidity': humidity_final,
+        'Feels_Like': feelslike_final,
+        "Precipitation" : precipitation_final
     })
 
 # Sidebar
@@ -195,10 +293,12 @@ with st.sidebar:
 st.markdown('<h1 class="main-header">Weather Dashboard</h1>', unsafe_allow_html=True)
 
 # Get data
-current_weather = get_weather_data()
-forecast_data = get_forecast_data()
-hourly_data = get_hourly_data()
-hourly_data2 = get_hourly_data()
+if interval == "Hourly":
+    current_weather = db_model.get_recent_hourly_weather()
+    sequence_data = get_sequence_data()
+elif interval == "15 Minutely":
+    current_weather = db_model.get_recent_quarterly_weather()
+    sequence_data = get_quarterly_data()
 
 # Current weather section
 col1, col2, col3 = st.columns([2, 1, 1])
@@ -207,10 +307,10 @@ with col1:
     st.markdown(f"""
     <div class="weather-card">
         <div class="location-text">Malang</div>
-        <div class="temp-large">{current_weather['current_temp']}°</div>    
+        <div class="temp-large">{current_weather['temp_c']}°</div>    
         <div style="margin-top: 10px;">
             💧 Humidity: {current_weather['humidity']}% /
-            💨 Wind: {current_weather['wind_speed']} km/h
+            💨 Wind: {current_weather['wind_kph']:.2f} km/h
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -218,12 +318,12 @@ with col1:
 with col2:
     st.metric(
         label="Feels Like",
-        value=f"{current_weather['feels_like']}°",
-        delta=f"{current_weather['feels_like'] - current_weather['current_temp']}°"
+        value=f"{current_weather['feelslike_c']}°",
+        delta=f"{(current_weather['feelslike_c'] - current_weather['temp_c']):.2f}°"
     )
     st.metric(
-        label="Wind Speed",
-        value=current_weather['wind_speed'],
+        label="Wind Gust",
+        value=current_weather['gust_kph'],
         delta="6 Km/h"
     )
 
@@ -233,7 +333,7 @@ with col3:
         value=f"{current_weather['pressure']} hPa"
     )
     st.metric(
-        label="Humidity",
+        label="Cloud Coverage",
         value=f"{current_weather['humidity']} %"
     )
 
@@ -244,7 +344,7 @@ st.subheader("💧 Temperature")
     
 # Temperature chart with horizontal scroll
 fig_temp2 = px.line(
-    hourly_data2, 
+    sequence_data, 
     x='Hour', 
     y=['Temperature', "Feels_Like"],
     title='Hourly Temperature (Scroll →)',
@@ -299,7 +399,7 @@ with overview_col1:
     
     # Temperature chart with horizontal scroll
     fig_temp = px.line(
-        hourly_data, 
+        sequence_data, 
         x='Hour', 
         y='Temperature',
         title='Hourly Temperature (Scroll →)',
@@ -348,7 +448,7 @@ with overview_col2:
     
     # Humidity chart with horizontal scroll
     fig_humidity = px.bar(
-        hourly_data,  # Show all hours instead of every 4th
+        sequence_data,  # Show all hours instead of every 4th
         x='Hour', 
         y='Humidity',
         title='Hourly Humidity (Scroll →)',
@@ -397,28 +497,7 @@ with overview_col2:
 st.markdown("---")
 
 # Data cuaca untuk ditampilkan
-weather_data = [
-    {
-        "image": "https://cdn.weatherapi.com/weather/64x64/day/176.png",
-        "day": "Senin",
-        "temp": "30°C",
-        "precip": "10%"
-    },
-    {
-        "image": "https://cdn.weatherapi.com/weather/64x64/day/176.png",
-        "day": "Selasa",
-        "temp": "28°C",
-        "precip": "60%"
-    },
-    {
-        "image": "https://cdn.weatherapi.com/weather/64x64/day/176.png",
-        "day": "Rabu",
-        "temp": "31°C",
-        "precip": "20%"
-    }
-]
-
-data_cuaca = [
+weather_card_data = [
     {"hari": "Senin", "suhu": "30°C", "presipitasi": "10%"},
     {"hari": "Selasa", "suhu": "28°C", "presipitasi": "60%"},
     {"hari": "Rabu", "suhu": "31°C", "presipitasi": "20%"},
@@ -434,15 +513,15 @@ icon_url = "https://cdn.weatherapi.com/weather/64x64/day/176.png"
 # HTML untuk cards cuaca
 html = '<div style="display: flex; overflow-x: auto; padding: 10px;-ms-overflow-style: none;scrollbar-width: none;">'
 
-for cuaca in data_cuaca:
+for card_data in weather_card_data:
     html += f"""
     <div style="flex: 0 0 auto; border: 1px solid #ddd; padding: 10px; margin-right: 10px;
                 text-align: center; background-color: #000000; min-width: 150px; font-family:'Source Sans Pro', sans-serif; color: white;
                 border-radius: 8px;">
-        <h4>{cuaca["hari"]}</h4>
+        <h4>{card_data["hari"]}</h4>
         <img src="{icon_url}" width="80"><br>
-        <p>Suhu: {cuaca["suhu"]}</p>
-        <p>Presipitasi: {cuaca["presipitasi"]}</p>
+        <p>Suhu: {card_data["suhu"]}</p>
+        <p>Presipitasi: {card_data["presipitasi"]}</p>
     </div>
     """
 

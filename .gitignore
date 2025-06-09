@@ -4,6 +4,7 @@ airflow/*
 pipeline/*
 # jars/
 spark_environment.yml
+**/__pycache__/
 
 !Dockerfile
 !requirements.txt

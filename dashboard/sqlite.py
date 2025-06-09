@@ -20,7 +20,7 @@ class sqliteModel:
                 return True
         return False
 
-    def _filter_certain_time(self, data, key="created_at",  time_filter="hourly", tolerance=2):
+    def _filter_certain_time(self, data, key="created_at",  time_filter:str="hourly", tolerance=2):
         result = []
         for item in data:
             try:
@@ -33,72 +33,109 @@ class sqliteModel:
     
     def get_all_hourly_temperature(self):
         conn = sqlite3.connect(self.file_path)
-        df = pd.read_sql_query("SELECT timestamp, avg_temperature_c FROM weather_summary", conn)
-        results = df.to_dict(orient="list")
-        return results
-    
+        df = pd.read_sql_query("SELECT timestamp, temperature_c FROM weather_summary", conn)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp")
+        return df
+
     def get_all_quarter_temperature(self):
         conn = sqlite3.connect(self.file_path)
         df = pd.read_sql_query("SELECT timestamp, temp_c FROM weather_data", conn)
-        results = df.to_dict(orient="list")
-        return results
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp")
+        return df
     
+    def get_all_hourly_feelslike(self):
+        conn = sqlite3.connect(self.file_path)
+        df = pd.read_sql_query("SELECT timestamp, feels_like_c FROM weather_summary", conn)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp")
+        return df
+
+    def get_all_quarter_feelslike(self):
+        conn = sqlite3.connect(self.file_path)
+        df = pd.read_sql_query("SELECT timestamp, feelslike_c FROM weather_data", conn)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp")
+        return df
+
     def get_all_hourly_humidity(self):
         conn = sqlite3.connect(self.file_path)
-        df = pd.read_sql_query("SELECT timestamp, avg_humidity_pct FROM weather_summary", conn)
-        results = df.to_dict(orient="list")
-        return results
-    
+        df = pd.read_sql_query("SELECT timestamp, humidity_pct FROM weather_summary", conn)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp")
+        return df
+
     def get_all_quarter_humidity(self):
         conn = sqlite3.connect(self.file_path)
         df = pd.read_sql_query("SELECT timestamp, humidity FROM weather_data", conn)
-        results = df.to_dict(orient="list")
-        return results
-    
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp")
+        return df
+
     def get_hourly_precipitation(self):
         conn = sqlite3.connect(self.file_path)
         df = pd.read_sql_query("SELECT timestamp, precip_mm FROM weather_data", conn)
         unfiltered = df.to_dict(orient="records")
-        filtered = pd.DataFrame(self._filter_certain_time(unfiltered))
+        filtered = pd.DataFrame(self._filter_certain_time(unfiltered, key="timestamp"))
+        filtered = filtered.sort_values("timestamp")
         return filtered
     
     def get_quarter_precipitation(self):
         conn = sqlite3.connect(self.file_path)
         df = pd.read_sql_query("SELECT timestamp, precip_mm FROM weather_data", conn)
-        results = df.to_dict(orient="list")
-        return results
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp")
+        return df
 
     def get_hourly_icon(self):
         conn = sqlite3.connect(self.file_path)
         df = pd.read_sql_query("SELECT timestamp, icon FROM weather_data", conn)
         unfiltered = df.to_dict(orient="records")
         filtered = pd.DataFrame(self._filter_certain_time(unfiltered))
+
         return filtered
     
     def get_quarter_icon(self):
         conn = sqlite3.connect(self.file_path)
         df = pd.read_sql_query("SELECT icon FROM weather_data", conn)
-        results = df.to_dict(orient="list")
-        return results
-    
+        
+        return df
+
     def get_recent_hourly_weather(self):
         conn = sqlite3.connect(self.file_path)
         query = """
-        SELECT * FROM weather_summary
+        SELECT 
+            temperature_c AS temp_c,
+            wind_speed_kmph AS wind_kph,
+            pressure,
+            humidity_pct AS humidity,
+            feels_like_c AS feelslike_c,
+            wind_gust_kmph AS gust_kph,
+            cloud_total_pct AS cloud
+        FROM weather_summary
         ORDER BY timestamp DESC
         LIMIT 1
         """
         df = pd.read_sql_query(query, conn)
         results = df.to_dict(orient="records")
-        return results
-    
+        return results[0]
+
     def get_recent_quarterly_weather(self):
         conn = sqlite3.connect(self.file_path)
         query = """
-        SELECT * FROM weather_data
+        SELECT 
+            temp_c,
+            wind_kph,
+            pressure_mb AS pressure,
+            humidity,
+            feelslike_c,
+            gust_kph,
+            cloud
+        FROM weather_data
         ORDER BY timestamp DESC
         LIMIT 1
         """
         df = pd.read_sql_query(query, conn)
         results = df.to_dict(orient="records")
-        return results
+        return results[0]
