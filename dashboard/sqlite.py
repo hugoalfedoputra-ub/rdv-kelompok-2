@@ -39,7 +39,7 @@ class sqliteModel:
     
     def get_all_quarter_temperature(self):
         conn = sqlite3.connect(self.file_path)
-        df = pd.read_sql_query("SELECT localtime, temp_c FROM weather_data", conn)
+        df = pd.read_sql_query("SELECT timestamp, temp_c FROM weather_data", conn)
         results = df.to_dict(orient="list")
         return results
     
@@ -51,28 +51,26 @@ class sqliteModel:
     
     def get_all_quarter_humidity(self):
         conn = sqlite3.connect(self.file_path)
-        df = pd.read_sql_query("SELECT localtime, humidity FROM weather_data", conn)
+        df = pd.read_sql_query("SELECT timestamp, humidity FROM weather_data", conn)
         results = df.to_dict(orient="list")
         return results
     
     def get_hourly_precipitation(self):
         conn = sqlite3.connect(self.file_path)
-        df = pd.read_sql_query("SELECT localtime, precip_mm FROM weather_data", conn)
-        df = df.rename(columns={"localtime" : "timestamp"})
+        df = pd.read_sql_query("SELECT timestamp, precip_mm FROM weather_data", conn)
         unfiltered = df.to_dict(orient="records")
         filtered = pd.DataFrame(self._filter_certain_time(unfiltered))
         return filtered
     
     def get_quarter_precipitation(self):
         conn = sqlite3.connect(self.file_path)
-        df = pd.read_sql_query("SELECT localtime, precip_mm FROM weather_data", conn)
+        df = pd.read_sql_query("SELECT timestamp, precip_mm FROM weather_data", conn)
         results = df.to_dict(orient="list")
         return results
 
     def get_hourly_icon(self):
         conn = sqlite3.connect(self.file_path)
-        df = pd.read_sql_query("SELECT localtime, icon FROM weather_data", conn)
-        df = df.rename(columns={"localtime" : "timestamp"})
+        df = pd.read_sql_query("SELECT timestamp, icon FROM weather_data", conn)
         unfiltered = df.to_dict(orient="records")
         filtered = pd.DataFrame(self._filter_certain_time(unfiltered))
         return filtered
@@ -81,4 +79,26 @@ class sqliteModel:
         conn = sqlite3.connect(self.file_path)
         df = pd.read_sql_query("SELECT icon FROM weather_data", conn)
         results = df.to_dict(orient="list")
+        return results
+    
+    def get_recent_hourly_weather(self):
+        conn = sqlite3.connect(self.file_path)
+        query = """
+        SELECT * FROM weather_summary
+        ORDER BY timestamp DESC
+        LIMIT 1
+        """
+        df = pd.read_sql_query(query, conn)
+        results = df.to_dict(orient="records")
+        return results
+    
+    def get_recent_quarterly_weather(self):
+        conn = sqlite3.connect(self.file_path)
+        query = """
+        SELECT * FROM weather_data
+        ORDER BY timestamp DESC
+        LIMIT 1
+        """
+        df = pd.read_sql_query(query, conn)
+        results = df.to_dict(orient="records")
         return results

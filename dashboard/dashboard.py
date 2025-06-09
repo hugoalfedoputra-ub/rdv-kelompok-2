@@ -5,6 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime
+from sqlite import sqliteModel
 
 # Page configuration
 st.set_page_config(
@@ -398,19 +399,19 @@ st.markdown("---")
 # Data cuaca untuk ditampilkan
 weather_data = [
     {
-        "image": "https://cdn2.iconfinder.com/data/icons/weather-flat-14/64/weather02-512.png",
+        "image": "https://cdn.weatherapi.com/weather/64x64/day/176.png",
         "day": "Senin",
         "temp": "30°C",
         "precip": "10%"
     },
     {
-        "image": "https://cdn2.iconfinder.com/data/icons/weather-flat-14/64/weather02-512.png",
+        "image": "https://cdn.weatherapi.com/weather/64x64/day/176.png",
         "day": "Selasa",
         "temp": "28°C",
         "precip": "60%"
     },
     {
-        "image": "https://cdn2.iconfinder.com/data/icons/weather-flat-14/64/weather02-512.png",
+        "image": "https://cdn.weatherapi.com/weather/64x64/day/176.png",
         "day": "Rabu",
         "temp": "31°C",
         "precip": "20%"
@@ -428,7 +429,7 @@ data_cuaca = [
 ]
 
 # Icon cuaca
-icon_url = "https://cdn2.iconfinder.com/data/icons/weather-flat-14/64/weather02-512.png"
+icon_url = "https://cdn.weatherapi.com/weather/64x64/day/176.png"
 
 # HTML untuk cards cuaca
 html = '<div style="display: flex; overflow-x: auto; padding: 10px;-ms-overflow-style: none;scrollbar-width: none;">'
