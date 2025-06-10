@@ -92,14 +92,16 @@ class sqliteModel:
         conn = sqlite3.connect(self.file_path)
         df = pd.read_sql_query("SELECT timestamp, icon FROM weather_data", conn)
         unfiltered = df.to_dict(orient="records")
-        filtered = pd.DataFrame(self._filter_certain_time(unfiltered))
-
+        filtered = pd.DataFrame(self._filter_certain_time(unfiltered, key="timestamp", time_filter="hourly"))
+        filtered["timestamp"] = pd.to_datetime(filtered["timestamp"])
+        filtered = filtered.sort_values("timestamp")
         return filtered
     
     def get_quarter_icon(self):
         conn = sqlite3.connect(self.file_path)
-        df = pd.read_sql_query("SELECT icon FROM weather_data", conn)
-        
+        df = pd.read_sql_query("SELECT timestamp, icon FROM weather_data", conn)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.sort_values("timestamp")
         return df
 
     def get_recent_hourly_weather(self):

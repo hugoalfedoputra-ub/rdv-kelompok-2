@@ -16,7 +16,7 @@ SQLITE_PATH = os.getenv("SQLITE_PATH", "weather.db")
 HOUR_SLICING = 8
 MINUTE_SLICING = 16
 HOURLY_FORECAST_LENGTH = 12
-MINUTELY_FORECAST_LENGTH = 48
+MINUTELY_FORECAST_LENGTH = 16
 
 db_model = sqliteModel(SQLITE_PATH)
 
@@ -133,7 +133,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-def get_sequence_data():
+def get_hist_hourly_data():
     # Feels Like Sequencial Making
     feels_like = db_model.get_all_hourly_feelslike()
     hours = feels_like["timestamp"].dt.strftime("%H:%M").to_list()[-HOUR_SLICING:]
@@ -197,7 +197,7 @@ def round_down_to_nearest_15(t):
     minute = (dt.minute // 15) * 15
     return dt.replace(minute=minute, second=0).strftime("%H:%M")
 
-def get_quarterly_data():
+def get_hist_quarterly_data():
     # Feels Like Sequencial Making
     feels_like = db_model.get_all_quarter_feelslike()
     feels_like = feels_like.groupby("timestamp", as_index=False).mean()
@@ -257,6 +257,133 @@ def get_quarterly_data():
         "Precipitation" : precipitation_final
     })
 
+def make_data_card(slicing: int, mode: str = "quarter"):
+    if mode == "quarter":
+        precipitation = db_model.get_quarter_precipitation()
+        precipitation = precipitation.groupby("timestamp", as_index=False).mean()
+        precipitation_historical = precipitation["precip_mm"].to_list()[-slicing:]
+
+        temps = db_model.get_all_quarter_temperature()
+        temps = temps.groupby("timestamp", as_index=False).mean()
+        temp_historical = temps["temp_c"].to_list()[-slicing:]
+
+        hours = temps["timestamp"].dt.strftime("%H:%M").to_list()[-slicing:]
+        icons_df = db_model.get_quarter_icon()
+        icons = icons_df["icon"].to_list()[-slicing:]
+        
+    elif mode == "hour":
+        temps = db_model.get_all_hourly_temperature()
+        temp_historical = temps["temperature_c"].to_list()[-slicing:]
+        hours = temps["timestamp"].dt.strftime("%H:%M").to_list()[-slicing:]
+
+        precipitation = db_model.get_hourly_precipitation()
+        precipitation_historical = precipitation["precip_mm"].to_list()[-slicing:]
+
+        icons_df = db_model.get_hourly_icon()
+        merged = pd.merge(temps, icons_df, on="timestamp", how="inner")
+        icons = merged["icon"].to_list()[-slicing:]
+    else:
+        raise ValueError("Mode harus 'quarter' atau 'hour'.")
+    
+    data_card = pd.DataFrame({
+        "Hour":hours,
+        "Temperature":temp_historical,
+        "Precipitation":precipitation_historical,
+        "Icon":icons
+    })
+
+    return data_card.to_dict(orient="records")
+
+def create_chart_with_slider(data, x_col, y_cols, title, colors, chart_type="line", current_time_index=None):
+    """Create a chart with proper slider positioning"""
+    
+    if chart_type == "line":
+        if isinstance(y_cols, list) and len(y_cols) > 1:
+            # Multiple lines - create clean data with only needed columns
+            plot_data = data[[x_col] + y_cols].copy()
+            fig = px.line(
+                plot_data,
+                x=x_col,
+                y=y_cols,
+                title=title,
+                color_discrete_map=colors
+            )
+        else:
+            # Single line
+            y_col = y_cols[0] if isinstance(y_cols, list) else y_cols
+            fig = px.line(
+                data,
+                x=x_col,
+                y=y_col,
+                title=title,
+                color_discrete_sequence=[colors.get(y_col, "#1f77b4")]
+            )
+    else:  # bar chart
+        y_col = y_cols[0] if isinstance(y_cols, list) else y_cols
+        fig = px.bar(
+            data,
+            x=x_col,
+            y=y_col,
+            title=title,
+            color=y_col,
+            color_continuous_scale='Blues'
+        )
+    
+    # Add "Now" marker if current_time_index is provided
+    if current_time_index is not None:
+        fig.add_vline(
+            x=current_time_index,
+            line_dash="dash",
+            line_color="yellow",
+            annotation_text="Now",
+            annotation_position="top"
+        )
+    
+    # Calculate slider range around current time
+    if current_time_index is not None:
+        start_range = max(0, current_time_index - 2)
+        end_range = min(len(data) - 1, current_time_index + 3)
+    else:
+        start_range = 0
+        end_range = min(4, len(data) - 1)
+    
+    # Configure layout
+    fig.update_layout(
+        height=350,
+        xaxis=dict(
+            rangeslider=dict(visible=True),
+            type="category",
+            showgrid=True,
+            gridcolor='rgba(255,255,255,0.2)',
+            range=[start_range, end_range],
+            fixedrange=False
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor='rgba(255,255,255,0.2)'
+        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='white'),
+        title_font=dict(color='white', size=14),
+        margin=dict(l=40, r=40, t=40, b=80),
+        showlegend=(isinstance(y_cols, list) and len(y_cols) > 1)
+    )
+    
+    # Add scroll instruction
+    fig.add_annotation(
+        text="💡 Drag the slider below or use mouse wheel to scroll through time",
+        xref="paper", yref="paper",
+        x=0.5, y=-0.25,
+        showarrow=False,
+        font=dict(size=10, color="lightblue"),
+        bgcolor="rgba(0,0,0,0.3)",
+        bordercolor="rgba(255,255,255,0.2)",
+        borderwidth=1
+    )
+    
+    return fig
+
 # Sidebar
 with st.sidebar:
     st.title("🌤️ Weather Dashboard")
@@ -266,21 +393,7 @@ with st.sidebar:
     # Interval selector
     interval = st.selectbox(
         "Select Interval",
-        ["Hourly", "15 Minutely"]
-    )
-    
-    st.markdown("---")
-    st.info("🔽Unit Selector")
-
-    # Unit selector
-    temp_units = st.radio(
-        "Temperature Units",
-        ["Celsius", "Fahrenheit"]
-    )
-
-    wind_units = st.radio(
-        "Wind Units",
-        ["Miles/Hour", "Km/Hour"] 
+        ["15 Minutely", "Hourly"]
     )
     
     # Refresh button
@@ -292,13 +405,19 @@ with st.sidebar:
 # Main content
 st.markdown('<h1 class="main-header">Weather Dashboard</h1>', unsafe_allow_html=True)
 
+current_time = datetime.now()
+
 # Get data
 if interval == "Hourly":
     current_weather = db_model.get_recent_hourly_weather()
-    sequence_data = get_sequence_data()
+    sequence_data = get_hist_hourly_data()
+    weather_card_data = make_data_card(slicing=HOUR_SLICING, mode="hour")
+    current_time_index = HOUR_SLICING - 1
 elif interval == "15 Minutely":
     current_weather = db_model.get_recent_quarterly_weather()
-    sequence_data = get_quarterly_data()
+    sequence_data = get_hist_quarterly_data()
+    weather_card_data = make_data_card(slicing=MINUTE_SLICING, mode="quarter")
+    current_time_index = MINUTE_SLICING - 1
 
 # Current weather section
 col1, col2, col3 = st.columns([2, 1, 1])
@@ -306,9 +425,12 @@ col1, col2, col3 = st.columns([2, 1, 1])
 with col1:
     st.markdown(f"""
     <div class="weather-card">
-        <div class="location-text">Malang</div>
-        <div class="temp-large">{current_weather['temp_c']}°</div>    
-        <div style="margin-top: 10px;">
+        <div class="location-text" style="font-size: 1.4rem; font-weight: 600;">Malang</div>
+        <div style="font-size: 0.85rem; opacity: 0.7; margin-bottom: 15px; font-weight: 300;">
+            {current_time.strftime("%A, %d %B %Y")} • {current_time.strftime("%H:%M")}
+        </div>
+        <div class="temp-large" style="font-size: 3.5rem; margin: 15px 0;">{current_weather['temp_c']}°</div>    
+        <div style="margin-top: 15px; font-size: 1.1rem; font-weight: 500;">
             💧 Humidity: {current_weather['humidity']}% /
             💨 Wind: {current_weather['wind_kph']:.2f} km/h
         </div>
@@ -340,177 +462,53 @@ with col3:
 st.markdown("---")
 st.subheader("📊 24-Hour Overview")
 
-st.subheader("💧 Temperature")
-    
-# Temperature chart with horizontal scroll
-fig_temp2 = px.line(
-    sequence_data, 
-    x='Hour', 
-    y=['Temperature', "Feels_Like"],
-    title='Hourly Temperature (Scroll →)',
-    color_discrete_map={
+# Main temperature chart with both Temperature and Feels Like
+st.subheader("🌡️ Temperature vs Feels Like")
+fig_temp_main = create_chart_with_slider(
+    sequence_data,
+    x_col='Hour',
+    y_cols=['Temperature', 'Feels_Like'],
+    title='Temperature & Feels Like (Scroll →)',
+    colors={
         "Temperature": "#ff6600",
-        "FeelsLike": "#00ccff"
-    }
+        "Feels_Like": "#00ccff"
+    },
+    current_time_index=current_time_index
 )
+st.plotly_chart(fig_temp_main, use_container_width=True)
 
-# Configure layout for horizontal scrolling
-fig_temp2.update_layout(
-    height=350,
-    xaxis=dict(
-        rangeslider=dict(visible=True),  # Add range slider for navigation
-        type="category",
-        showgrid=True,
-        gridcolor='rgba(255,255,255,0.2)',
-        # Show only 5 ticks initially
-        range=[0, 4],  # Show first 5 hours
-        fixedrange=False  # Allow zooming and panning
-    ),
-    yaxis=dict(
-        showgrid=True,
-        gridcolor='rgba(255,255,255,0.2)'
-    ),
-    plot_bgcolor='rgba(0,0,0,0)',
-    paper_bgcolor='rgba(0,0,0,0)',
-    font=dict(color='white'),
-    title_font=dict(color='white', size=14),
-    margin=dict(l=40, r=40, t=40, b=80)  # Extra bottom margin for range slider
-)
-
-# Add annotation for scroll instruction
-fig_temp2.add_annotation(
-    text="💡 Drag the slider below or use mouse wheel to scroll through hours",
-    xref="paper", yref="paper",
-    x=0.5, y=-0.25,
-    showarrow=False,
-    font=dict(size=10, color="lightblue"),
-    bgcolor="rgba(0,0,0,0.3)",
-    bordercolor="rgba(255,255,255,0.2)",
-    borderwidth=1
-)
-
-st.plotly_chart(fig_temp2, use_container_width=True)
-
-# Hourly data and additional metrics
+# Secondary charts
 overview_col1, overview_col2 = st.columns(2)
 
 with overview_col1:
-    st.subheader("💧 Precipitation")
-    
-    # Temperature chart with horizontal scroll
-    fig_temp = px.line(
-        sequence_data, 
-        x='Hour', 
-        y='Temperature',
-        title='Hourly Temperature (Scroll →)',
-        color_discrete_sequence=["#bbd8ff"]
+    st.subheader("🌧️ Precipitation")
+    fig_precip = create_chart_with_slider(
+        sequence_data,
+        x_col='Hour',
+        y_cols=['Precipitation'],
+        title='Precipitation Forecast (Scroll →)',
+        colors={"Precipitation": "#4A90E2"},
+        current_time_index=current_time_index
     )
-    
-    # Configure layout for horizontal scrolling
-    fig_temp.update_layout(
-        height=350,
-        xaxis=dict(
-            rangeslider=dict(visible=True),  # Add range slider for navigation
-            type="category",
-            showgrid=True,
-            gridcolor='rgba(255,255,255,0.2)',
-            # Show only 5 ticks initially
-            range=[0, 4],  # Show first 5 hours
-            fixedrange=False  # Allow zooming and panning
-        ),
-        yaxis=dict(
-            showgrid=True,
-            gridcolor='rgba(255,255,255,0.2)'
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='white'),
-        title_font=dict(color='white', size=14),
-        margin=dict(l=40, r=40, t=40, b=80)  # Extra bottom margin for range slider
-    )
-    
-    # Add annotation for scroll instruction
-    fig_temp.add_annotation(
-        text="💡 Drag the slider below or use mouse wheel to scroll through hours",
-        xref="paper", yref="paper",
-        x=0.5, y=-0.25,
-        showarrow=False,
-        font=dict(size=10, color="lightblue"),
-        bgcolor="rgba(0,0,0,0.3)",
-        bordercolor="rgba(255,255,255,0.2)",
-        borderwidth=1
-    )
-    
-    st.plotly_chart(fig_temp, use_container_width=True)
+    st.plotly_chart(fig_precip, use_container_width=True)
 
 with overview_col2:
     st.subheader("💧 Humidity Levels")
-    
-    # Humidity chart with horizontal scroll
-    fig_humidity = px.bar(
-        sequence_data,  # Show all hours instead of every 4th
-        x='Hour', 
-        y='Humidity',
-        title='Hourly Humidity (Scroll →)',
-        color='Humidity',
-        color_continuous_scale='Blues'
+    fig_humidity = create_chart_with_slider(
+        sequence_data,
+        x_col='Hour',
+        y_cols=['Humidity'],
+        title='Humidity Levels (Scroll →)',
+        colors={"Humidity": "#1E88E5"},
+        chart_type="bar",
+        current_time_index=current_time_index
     )
-    
-    # Configure layout for horizontal scrolling
-    fig_humidity.update_layout(
-        height=350,
-        xaxis=dict(
-            rangeslider=dict(visible=True),
-            type="category",
-            showgrid=True,
-            gridcolor='rgba(255,255,255,0.2)',
-            # Show only 5 ticks initially
-            range=[0, 4],  # Show first 5 hours
-            fixedrange=False
-        ),
-        yaxis=dict(
-            showgrid=True,
-            gridcolor='rgba(255,255,255,0.2)'
-        ),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='white'),
-        title_font=dict(color='white', size=14),
-        margin=dict(l=40, r=40, t=40, b=80),
-        showlegend=False  # Hide colorbar legend to save space
-    )
-    
-    # Add annotation for scroll instruction
-    fig_humidity.add_annotation(
-        text="💡 Drag the slider below or use mouse wheel to scroll through hours",
-        xref="paper", yref="paper",
-        x=0.5, y=-0.25,
-        showarrow=False,
-        font=dict(size=10, color="lightblue"),
-        bgcolor="rgba(0,0,0,0.3)",
-        bordercolor="rgba(255,255,255,0.2)",
-        borderwidth=1
-    )
-    
     st.plotly_chart(fig_humidity, use_container_width=True)
 
 st.markdown("---")
 
-# Data cuaca untuk ditampilkan
-weather_card_data = [
-    {"hari": "Senin", "suhu": "30°C", "presipitasi": "10%"},
-    {"hari": "Selasa", "suhu": "28°C", "presipitasi": "60%"},
-    {"hari": "Rabu", "suhu": "31°C", "presipitasi": "20%"},
-    {"hari": "Kamis", "suhu": "32°C", "presipitasi": "25%"},
-    {"hari": "Jumat", "suhu": "29°C", "presipitasi": "50%"},
-    {"hari": "Sabtu", "suhu": "27°C", "presipitasi": "70%"},
-    {"hari": "Minggu", "suhu": "30°C", "presipitasi": "15%"},
-]
-
-# Icon cuaca
-icon_url = "https://cdn.weatherapi.com/weather/64x64/day/176.png"
-
-# HTML untuk cards cuaca
+# Weather cards
+st.subheader("🕐 Recent Weather Timeline")
 html = '<div style="display: flex; overflow-x: auto; padding: 10px;-ms-overflow-style: none;scrollbar-width: none;">'
 
 for card_data in weather_card_data:
@@ -518,20 +516,19 @@ for card_data in weather_card_data:
     <div style="flex: 0 0 auto; border: 1px solid #ddd; padding: 10px; margin-right: 10px;
                 text-align: center; background-color: #000000; min-width: 150px; font-family:'Source Sans Pro', sans-serif; color: white;
                 border-radius: 8px;">
-        <h4>{card_data["hari"]}</h4>
-        <img src="{icon_url}" width="80"><br>
-        <p>Suhu: {card_data["suhu"]}</p>
-        <p>Presipitasi: {card_data["presipitasi"]}</p>
+        <h4>{card_data["Hour"]}</h4>
+        <img src="{card_data["Icon"]}" width="80"><br>
+        <p>Temp : {card_data["Temperature"]:.2f}°C</p>
+        <p>Precip : {card_data["Precipitation"]:.2f}mm</p>
     </div>
     """
 
 html += "</div>"
-
-# Tampilkan
 components.html(html, height=300)
 
 st.markdown("---")
 
+# Information cards
 info_col1, info_col2 = st.columns(2)
 
 with info_col1:
