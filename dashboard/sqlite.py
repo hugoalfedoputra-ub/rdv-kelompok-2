@@ -34,7 +34,7 @@ class sqliteModel:
     def get_all_hourly_temperature(self):
         conn = sqlite3.connect(self.file_path)
         df = pd.read_sql_query("SELECT timestamp, temperature_c FROM weather_summary", conn)
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], format="mixed")
         df = df.sort_values("timestamp")
         return df
 
@@ -48,7 +48,7 @@ class sqliteModel:
     def get_all_hourly_feelslike(self):
         conn = sqlite3.connect(self.file_path)
         df = pd.read_sql_query("SELECT timestamp, feels_like_c FROM weather_summary", conn)
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], format="mixed")
         df = df.sort_values("timestamp")
         return df
 
@@ -62,7 +62,7 @@ class sqliteModel:
     def get_all_hourly_humidity(self):
         conn = sqlite3.connect(self.file_path)
         df = pd.read_sql_query("SELECT timestamp, humidity_pct FROM weather_summary", conn)
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"], format="mixed")
         df = df.sort_values("timestamp")
         return df
 

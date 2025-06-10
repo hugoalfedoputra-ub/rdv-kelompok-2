@@ -7,9 +7,10 @@ import plotly.graph_objects as go
 import plotly.express as px
 
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlite import sqliteModel
 from prophetModel import ProphetWrapper
+from zoneinfo import ZoneInfo
 
 load_dotenv()
 SQLITE_PATH = os.getenv("SQLITE_PATH", "weather.db")
@@ -136,7 +137,7 @@ st.markdown("""
 def get_hist_hourly_data():
     # Feels Like Sequencial Making
     feels_like = db_model.get_all_hourly_feelslike()
-    hours = feels_like["timestamp"].dt.strftime("%H:%M").to_list()[-HOUR_SLICING:]
+    hours = feels_like["timestamp"].dt.strftime("%m-%d %H:%M").to_list()[-HOUR_SLICING:]
     feelslike_historical = feels_like["feels_like_c"].to_list()[-HOUR_SLICING:]
     # Forecast + Concate
     train = feels_like.rename(columns={"timestamp":"ds", "feels_like_c":"y"})
@@ -145,9 +146,9 @@ def get_hist_hourly_data():
     predict = feelslike_model.predict(periods=HOURLY_FORECAST_LENGTH)
     predict_value = predict["yhat"].to_list()
     feelslike_final = feelslike_historical + predict_value
-    hours = hours + predict["ds"].dt.strftime("%H:%M").to_list()
+    hours = hours + predict["ds"].dt.strftime("%m-%d %H:%M").to_list()
     normalized_hours = [
-    datetime.strptime(t, "%H:%M").replace(minute=0).strftime("%H:%M")
+    datetime.strptime(t, "%m-%d %H:%M").replace(minute=0).strftime("%m-%d %H:%M")
     for t in hours
     ]
 
@@ -193,15 +194,21 @@ def get_hist_hourly_data():
     })
 
 def round_down_to_nearest_15(t):
-    dt = datetime.strptime(t, "%H:%M")
+    dt = datetime.strptime(t, "%m-%d %H:%M")
     minute = (dt.minute // 15) * 15
-    return dt.replace(minute=minute, second=0).strftime("%H:%M")
+    return dt.replace(minute=minute, second=0).strftime("%m-%d %H:%M")
+
+def round_to_nearest_hour(t):
+    dt = datetime.strptime(t, "%m-%d %H:%M")
+    if dt.minute >= 30:
+        dt += timedelta(hours=1)
+    return dt.replace(minute=0, second=0).strftime("%m-%d %H:%M")
 
 def get_hist_quarterly_data():
     # Feels Like Sequencial Making
     feels_like = db_model.get_all_quarter_feelslike()
     feels_like = feels_like.groupby("timestamp", as_index=False).mean()
-    hours = feels_like["timestamp"].dt.strftime("%H:%M").to_list()[-MINUTE_SLICING:]
+    hours = feels_like["timestamp"].dt.strftime("%m-%d %H:%M").to_list()[-MINUTE_SLICING:]
     feelslike_historical = feels_like["feelslike_c"].to_list()[-MINUTE_SLICING:]
     # Forecast + Concate
     train = feels_like.rename(columns={"timestamp":"ds", "feelslike_c":"y"})
@@ -210,7 +217,7 @@ def get_hist_quarterly_data():
     predict = feelslike_model.predict(periods=MINUTELY_FORECAST_LENGTH)
     predict_value = predict["yhat"].to_list()
     feelslike_final = feelslike_historical + predict_value
-    hours = hours + predict["ds"].dt.strftime("%H:%M").to_list()
+    hours = hours + predict["ds"].dt.strftime("%m-%d %H:%M").to_list()
     normalized_hours = [round_down_to_nearest_15(t) for t in hours]
 
     # Temperature Sequencial Making
@@ -267,14 +274,14 @@ def make_data_card(slicing: int, mode: str = "quarter"):
         temps = temps.groupby("timestamp", as_index=False).mean()
         temp_historical = temps["temp_c"].to_list()[-slicing:]
 
-        hours = temps["timestamp"].dt.strftime("%H:%M").to_list()[-slicing:]
+        hours = temps["timestamp"].dt.strftime("%m-%d %H:%M").to_list()[-slicing:]
         icons_df = db_model.get_quarter_icon()
         icons = icons_df["icon"].to_list()[-slicing:]
         
     elif mode == "hour":
         temps = db_model.get_all_hourly_temperature()
         temp_historical = temps["temperature_c"].to_list()[-slicing:]
-        hours = temps["timestamp"].dt.strftime("%H:%M").to_list()[-slicing:]
+        hours = temps["timestamp"].dt.strftime("%m-%d %H:%M").to_list()[-slicing:]
 
         precipitation = db_model.get_hourly_precipitation()
         precipitation_historical = precipitation["precip_mm"].to_list()[-slicing:]
@@ -291,6 +298,7 @@ def make_data_card(slicing: int, mode: str = "quarter"):
         "Precipitation":precipitation_historical,
         "Icon":icons
     })
+    data_card["Hour"] = data_card["Hour"].apply(round_to_nearest_hour)
 
     return data_card.to_dict(orient="records")
 
@@ -405,7 +413,7 @@ with st.sidebar:
 # Main content
 st.markdown('<h1 class="main-header">Weather Dashboard</h1>', unsafe_allow_html=True)
 
-current_time = datetime.now()
+current_time = datetime.now(ZoneInfo("Asia/Jakarta"))
 
 # Get data
 if interval == "Hourly":
@@ -427,11 +435,11 @@ with col1:
     <div class="weather-card">
         <div class="location-text" style="font-size: 1.4rem; font-weight: 600;">Malang</div>
         <div style="font-size: 0.85rem; opacity: 0.7; margin-bottom: 15px; font-weight: 300;">
-            {current_time.strftime("%A, %d %B %Y")} • {current_time.strftime("%H:%M")}
+            {current_time.strftime("%A, %d %B %Y")} • {current_time.strftime("%m-%d %H:%M")}
         </div>
-        <div class="temp-large" style="font-size: 3.5rem; margin: 15px 0;">{current_weather['temp_c']}°</div>    
+        <div class="temp-large" style="font-size: 3.5rem; margin: 15px 0;">{current_weather['temp_c']:.2f}°</div>    
         <div style="margin-top: 15px; font-size: 1.1rem; font-weight: 500;">
-            💧 Humidity: {current_weather['humidity']}% /
+            💧 Humidity: {current_weather['humidity']:.2f}% /
             💨 Wind: {current_weather['wind_kph']:.2f} km/h
         </div>
     </div>
@@ -440,12 +448,12 @@ with col1:
 with col2:
     st.metric(
         label="Feels Like",
-        value=f"{current_weather['feelslike_c']}°",
+        value=f"{current_weather['feelslike_c']:.2f}°",
         delta=f"{(current_weather['feelslike_c'] - current_weather['temp_c']):.2f}°"
     )
     st.metric(
         label="Wind Gust",
-        value=current_weather['gust_kph'],
+        value=f"{current_weather['gust_kph']:.2f}",
         delta="6 Km/h"
     )
 
@@ -586,6 +594,6 @@ st.markdown(
     <div style='text-align: center; color: #666; padding: 20px;'>
         <p>Weather Dashboard • Last updated: {} • Data refreshes every 15 minutes</p>
     </div>
-    """.format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+    """.format(datetime.now(ZoneInfo("Asia/Jakarta")).strftime("%Y-%m-%d %m-%d %H:%M:%S")),
     unsafe_allow_html=True
 )
