@@ -1,0 +1,15 @@
+name: prophetenv
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - prophet=1.1.2
+  - pystan=2.19.1.1
+  - numpy
+  - pandas
+  - matplotlib
+  - streamlit
+  - pip
+  - pip:
+      - cmdstanpy  # Optional, untuk mendukung backend cmdstan kalau upgrade Prophet nanti
