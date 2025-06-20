@@ -298,7 +298,12 @@ def make_data_card(slicing: int, mode: str = "quarter"):
         "Precipitation":precipitation_historical,
         "Icon":icons
     })
-    data_card["Hour"] = data_card["Hour"].apply(round_to_nearest_hour)
+    # PERBAIKAN: Hanya bulatkan ke jam jika mode adalah "hour"
+    if mode == "hour":
+        data_card["Hour"] = data_card["Hour"].apply(round_to_nearest_hour)
+    else:  # mode == "quarter"
+        # Untuk mode quarter, bulatkan ke 15 menit terdekat atau biarkan apa adanya
+        data_card["Hour"] = data_card["Hour"].apply(round_down_to_nearest_15)
 
     return data_card.to_dict(orient="records")
 
